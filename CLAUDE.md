@@ -43,6 +43,25 @@ These come from the spec. They are not style preferences.
 
 **Completion** is optional: P = Σ(milestone weight × completion fraction). It is never derived from task counts, the user can override it, and it is shown separately from backlog health (§10.4).
 
+### Code map (MVP as built)
+
+The MVP replaces the SQLite tier with `~/.hopback/projects.json`; all project data lives in `.hopback/`.
+
+- `cmd/hopback`: entry point, calls `cli.Execute()`.
+- `internal/fsutil`: atomic temp-and-rename writes (with Windows retries) and `gofrs/flock` file locks.
+- `internal/model`: data types, enums, ID generation. Every JSON file carries `schema_version`.
+- `internal/protocol`: embedded `HOPBACK.md` and park-skill templates, pointer block, role instructions, opening prompts.
+- `internal/project`: find a project by walking up, `init`, template refresh, CLAUDE.md/AGENTS.md pointer blocks.
+- `internal/registry`: the machine-local project list (`HOPBACK_HOME` overrides `~/.hopback`).
+- `internal/store`: locked, all-or-nothing transactions over state/backlog/decisions plus the append-only event log; all write ops and `batch`.
+- `internal/session`: session records, attribution (`HOPBACK_SESSION`, then adapter detection), parking validation, reconciling dead sessions.
+- `internal/brief`: the status brief, project summaries, "changes since" lines.
+- `internal/agent`: the `Adapter` interface. `agent/claude` is the only Claude Code code; `agent/agenttest` is a fake adapter for tests.
+- `internal/launcher`: runs build/reopen/concierge sessions as attached child processes and records how they ended.
+- `internal/cli`: cobra commands (agent-facing and human-facing) and the interactive `hopback` loop.
+
+Dependency rule: core packages (`model`, `store`, `session`, `brief`, `project`, `registry`, `protocol`) never import `internal/agent/claude` or mention Claude Code. Only `internal/cli` wires the Claude adapter in.
+
 ## Data integrity requirements (§13)
 
 Multiple agents may write to the same project at the same time, so design for concurrency from the start:
