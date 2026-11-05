@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-There is no code yet. The repository holds only the product spec, `docs/PRD.md`, which is the source of truth; section numbers below (§) refer to it. There are no build, lint or test commands yet. Add them here once the project is scaffolded.
+There is no code yet. Three documents define the work:
+
+- `docs/PRD.md`: the product spec. Section numbers below (§) refer to it.
+- `docs/superpowers/specs/2026-11-05-hopback-mvp-design.md`: the agreed MVP design. **It wins wherever it differs from the PRD.** For example: no SQLite; build and concierge session roles; deliberate `/park` is the only way to end a session; Claude Code is the only agent Hopback launches.
+- `docs/superpowers/plans/2026-11-05-hopback-mvp.md`: the task-by-task implementation plan. It is being executed natively, in order. Its Task 1 replaces this section with the real build and test commands.
 
 Hopback is a local-first CLI that helps an independent developer keep track of many personal projects across AI coding agents such as Claude Code, Codex and Cursor. Projects are the primary entity. Sessions, backlog, decisions and events belong to a project.
 
