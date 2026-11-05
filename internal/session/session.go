@@ -124,6 +124,24 @@ func (m *Manager) Save(s model.Session) error {
 	return m.Store.WithLock(func() error { return fsutil.WriteJSON(m.path(s.ID), s) })
 }
 
+// Update changes a session record under the project lock. fn edits the record
+// and returns any events to append with it.
+func (m *Manager) Update(id string, fn func(s *model.Session) []model.Event) (model.Session, error) {
+	var s model.Session
+	err := m.Store.WithLock(func() error {
+		var err error
+		if s, err = m.Get(id); err != nil {
+			return err
+		}
+		evs := fn(&s)
+		if err := fsutil.WriteJSON(m.path(s.ID), s); err != nil {
+			return err
+		}
+		return m.Store.AppendEventsLocked(evs...)
+	})
+	return s, err
+}
+
 // Current identifies the session a command runs in: HOPBACK_SESSION if it
 // names a session in this project, else the newest session matching a
 // detector's native ID (created on first sight), else an unknown session.
