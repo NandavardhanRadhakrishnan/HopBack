@@ -5,6 +5,7 @@ package fsutil
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,4 +62,13 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	}
 	os.Remove(tmp)
 	return fmt.Errorf("replace %s: %w", path, err)
+}
+
+// WriteJSON writes v as indented JSON with a trailing newline, atomically.
+func WriteJSON(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	return WriteFileAtomic(path, append(b, '\n'), 0o644)
 }
