@@ -21,9 +21,11 @@ type (
 func TaskTypeValues() []string {
 	return []string{"idea", "feature", "bug", "improvement", "tech-debt", "research", "experiment"}
 }
-func PriorityValues() []string   { return []string{"high", "medium", "low"} }
-func TaskStatusValues() []string { return []string{"idea", "planned", "in_progress", "blocked", "completed", "cancelled"} }
-func OriginValues() []string     { return []string{"user_requested", "agent_suggested"} }
+func PriorityValues() []string { return []string{"high", "medium", "low"} }
+func TaskStatusValues() []string {
+	return []string{"idea", "planned", "in_progress", "blocked", "completed", "cancelled"}
+}
+func OriginValues() []string { return []string{"user_requested", "agent_suggested"} }
 func DecisionStatusValues() []string {
 	return []string{"open", "decided", "superseded"}
 }
