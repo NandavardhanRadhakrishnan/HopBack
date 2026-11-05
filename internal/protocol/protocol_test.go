@@ -10,7 +10,8 @@ import (
 func TestHopbackMD_Content(t *testing.T) {
 	s := string(HopbackMD())
 	for _, want := range []string{Marker(), "## Objective", "## Done", "## Stopped at", "## Unfinished", "## Gotchas", "## Next step",
-		"hopback session park", "hopback batch", "--origin user|agent", "hopback architecture change"} {
+		"hopback session park", "hopback batch", "--origin user|agent", "hopback architecture change",
+		"git stash push --include-untracked -- .hopback", "git stash pop", "No local changes to save"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("HOPBACK.md missing %q", want)
 		}

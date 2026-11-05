@@ -15,7 +15,7 @@ import (
 
 // TemplateVersion is bumped whenever HOPBACK.md or the park skill changes, so
 // installed copies are refreshed.
-const TemplateVersion = 1
+const TemplateVersion = 2
 
 //go:embed templates/HOPBACK.md
 var hopbackMD []byte

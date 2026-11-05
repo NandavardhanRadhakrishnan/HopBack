@@ -1,4 +1,4 @@
-<!-- hopback-template v1 -->
+<!-- hopback-template v2 -->
 # Hopback
 
 This project uses **Hopback** to keep track of where the work stands across agent sessions. The files in `.hopback/` are the project's memory: the backlog, decisions, the latest status, and a handoff from every parked session. The developer reads a brief built from these files when they return to the project, so keep them accurate.
@@ -36,6 +36,18 @@ Read these files directly whenever you like. **Change them only through the `hop
 | You need the developer to make a call you can't | Record an open decision: `hopback decision add --title "..." --option "name: tradeoffs"` |
 
 Record project-level changes, not every edit.
+
+## Switching git branches
+
+The files in `.hopback/` describe the whole project, not one branch. When you switch branches, take Hopback's uncommitted changes with you:
+
+```
+git stash push --include-untracked -- .hopback
+git switch <branch>
+git stash pop
+```
+
+If `git stash push` says `No local changes to save`, it created no stash: skip `git stash pop`, or you would pop an unrelated older stash. If `git stash pop` reports a conflict in `.hopback/`, stop and tell the developer. Don't resolve the JSON by hand.
 
 ## Commands
 

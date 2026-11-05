@@ -2,7 +2,7 @@
 name: park
 description: Park this Hopback session - update the project state and write the handoff so the developer can pick up later.
 ---
-<!-- hopback-template v1 -->
+<!-- hopback-template v2 -->
 Park this session following the "Parking" section of `.hopback/HOPBACK.md`:
 
 1. Update the tasks you worked on (`hopback task update`).
