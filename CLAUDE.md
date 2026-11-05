@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- Build: `go build ./...` (binary: `go build -o hopback.exe ./cmd/hopback`; install: `go install ./cmd/hopback`)
+- Build: `go build ./...` (binary: `go build -o bin/hopback.exe ./cmd/hopback`; `bin/` is gitignored and is on the user PATH, so a rebuild updates the `hopback` that agents call)
 - Test all: `go test ./...`
 - Single test: `go test ./internal/store -run TestTaskAdd_AssignsIDRankAndDefaults -v`
 - Vet: `go vet ./...`
