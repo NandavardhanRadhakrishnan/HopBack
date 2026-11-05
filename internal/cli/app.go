@@ -76,6 +76,7 @@ func NewRootCmd(app *App) *cobra.Command {
 	root.SetErr(app.Err)
 	root.PersistentFlags().BoolVar(&app.jsonOut, "json", false, "print machine-readable JSON")
 	addAgentCommands(root, app)
+	addHumanCommands(root, app)
 	return root
 }
 
