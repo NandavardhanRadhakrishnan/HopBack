@@ -101,6 +101,7 @@ Fields:
 - ID, title, description.
 - Type: `idea | feature | bug | improvement | tech-debt | research | experiment`.
 - Priority: `high | medium | low`.
+- Rank: an explicit backlog order, which the concierge can rearrange. "Still left" in the brief follows rank.
 - Status: `idea | planned | in_progress | blocked | completed | cancelled`.
 - Optional `depends_on`.
 - Optional `needs_review` (a reason plus the event that raised it).
@@ -163,7 +164,7 @@ Between features, the BACKGROUND section is replaced with:
 ```
 
 Rules:
-- "Recently done" is the last few completed backlog items by completion time. "Still left" shows the open count plus the top items by priority. Hopback computes both from the backlog.
+- "Recently done" is the last few completed backlog items by completion time. "Still left" shows the open count plus the top items in backlog order (rank). Hopback computes both from the backlog.
 - "Needs your decision" collects open decisions, backlog items flagged `needs_review`, and blockers.
 - If the latest build session ended without a handoff, show a clear one-line warning at the top, then the last known state.
 - With no state yet (a fresh project), say so and point to the concierge.
@@ -184,9 +185,10 @@ Every concierge session is a new conversation. Its continuity comes entirely fro
 
 ### 6.3 What it may do
 - Read everything in `.hopback/`.
-- Change the backlog and decisions under the rules in §8.
+- Change the backlog and decisions under the rules in §8, including reordering the backlog.
 - Set the recommended next task and alternatives (`hopback next set`), and update the brief's bottom line if the plan changed.
-- It must **not** modify project code. Enforce this through the launch configuration if practical (for example, disallowing file-editing tools while still allowing it to run `hopback`). Otherwise enforce it through its instructions. This is the builder's call.
+- Keep its full toolset. Its role instructions tell it not to change project code, but **no tools are blocked**. It can script and pipe operations, which is cheaper than many one-at-a-time calls. Blocking tools would make it work around the restriction and spend more tokens doing so.
+- For bulk changes it uses Hopback's batch command (§11): a list of operations in one call, validated and applied together. It should not edit `.hopback/` JSON directly, because that would skip locking and validation.
 
 ### 6.4 After the concierge exits
 If a next task was set during the session, Hopback offers to start a build session on it immediately. Otherwise it simply returns.
@@ -223,10 +225,10 @@ When the build session exits, Hopback checks the session record:
 - **Not parked:** mark it `interrupted` and print a plain message saying it ended without a handoff, with a reminder to `/park` next time. **Recovery is deferred** (§12).
 
 ### 7.4 Sessions not launched by Hopback
-If the user runs `claude` directly in a Hopback project, the agent still finds Hopback through the pointer in CLAUDE.md, and `/park` still works:
-- When the session environment variable is absent, the park procedure first registers a session (`hopback session register` or similar). That returns an ID, which the agent passes explicitly (`--session <id>`) to the commands that follow. Park validation then works as in §7.3.
-- Such a session has no native session ID, so it can be continued fresh but not reopened.
-- Hopback does not try to discover these conversations.
+If the user runs `claude` directly in a Hopback project, the agent still finds Hopback through the pointer in CLAUDE.md, and `/park` still works.
+- When a `hopback` command runs inside an agent session, the adapter identifies that session from the environment (§9). If Hopback has no record for it yet, it creates one on that first write: role `build`, native session ID filled in.
+- So these sessions are tracked from their first Hopback write onward, can be reopened like any other, and need no extra registration step.
+- Hopback does not scan for conversations that never call it.
 
 ## 8. Update rules (who may write what, without asking)
 
@@ -250,12 +252,12 @@ Verified against Claude Code 2.1.286:
 | Reopen a conversation | `--resume <uuid>` |
 | Mark concierge sessions in Claude's own `/resume` picker | `--name "hopback concierge · <project>"`; build sessions get `--name "hopback build · <task>"` |
 | Give the session its role | `--append-system-prompt <role instructions>` plus an opening prompt argument |
-| Attribute CLI calls to the session | Hopback sets an environment variable (e.g. `HOPBACK_SESSION`) on the child process. `hopback` commands the agent runs inherit it. |
+| Know which session a `hopback` call comes from | Claude Code exposes `CLAUDE_CODE_SESSION_ID` to every command the agent runs. This is the same ID `--resume` uses (observed in 2.1.286; not documented, so treat it as best-effort). The adapter reads it and Hopback maps it to its session record. As an agent-neutral fallback, Hopback also sets `HOPBACK_SESSION` on sessions it launches. If neither is present, the write is attributed to an unknown session, but never refused. |
 | `/park` | `hopback init` installs a project-level Claude Code command or skill named `park`, whose body points to the park procedure in HOPBACK.md. The builder should verify the current project-level command/skill location for this Claude Code version. |
 
 Hopback passes only the flags above. It leaves the user's own Claude Code defaults alone (model, permission mode, effort). If `claude` isn't on the PATH, Hopback says so plainly instead of failing obscurely.
 
-All Claude Code specifics live in an **agent adapter** behind an interface: build the launch, resume and park commands; set the session name; supply role instructions; install agent-specific files at init. The core (project, sessions, backlog, decisions, state, events, brief) must not import or mention Claude Code.
+All Claude Code specifics live in an **agent adapter** behind an interface: build the launch, resume and park commands; set the session name; supply role instructions; detect the current agent session from the environment; install agent-specific files at init. The core (project, sessions, backlog, decisions, state, events, brief) must not import or mention Claude Code.
 
 ## 10. Storage
 
@@ -315,6 +317,8 @@ Agent-facing. Structured flags or JSON input, `--json` output, non-zero exit wit
 |---|---|
 | read context | Everything an agent needs at session start, in one call (optional convenience; agents may read the files directly) |
 | task add / update / list | Enforces enums, records origin and attribution, emits events |
+| task reorder | Set the backlog order (an explicit rank, separate from priority) |
+| batch | Apply a list of operations (any of the writes in this table) from a JSON file or stdin. All are validated, then applied under one lock, so one call can do what would otherwise take dozens. Either all apply or none do. |
 | decision add / resolve | Open or decided; resolve closes an open one |
 | architecture change | Summary plus affected task IDs. Records the event and flags those tasks `needs_review`. |
 | review clear | User or agent clears a `needs_review` flag after reviewing |
@@ -377,7 +381,9 @@ Exact command names and flag syntax are the builder's call. Command families lik
 - Milestones and completion % deferred.
 - The menu defaults in §3.1.
 - Open decisions as the "Needs your decision" mechanism.
-- Sessions not launched by Hopback get recorded at park time without a native ID.
+- Sessions not launched by Hopback are recorded on their first Hopback write, using `CLAUDE_CODE_SESSION_ID`.
+- The concierge keeps all its tools and has a batch command for bulk changes.
+- Backlog items have an explicit rank, separate from priority.
 - The required handoff sections (§7.3).
 - If there's no objective, the build agent asks the user.
 - Hopback computes the concierge's "what changed" list.
@@ -390,5 +396,4 @@ Exact command names and flag syntax are the builder's call. Command families lik
 - Lock mechanism.
 - Exact JSON field names.
 - Brief styling.
-- How the concierge's no-code rule is enforced.
 - Test strategy. A fake agent adapter is recommended, so the lifecycle can be tested without launching Claude Code.
