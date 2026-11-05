@@ -4,12 +4,14 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/NandavardhanRadhakrishnan/HopBack/internal/agent"
 	"github.com/NandavardhanRadhakrishnan/HopBack/internal/agent/agenttest"
 	"github.com/NandavardhanRadhakrishnan/HopBack/internal/model"
 	"github.com/NandavardhanRadhakrishnan/HopBack/internal/project"
@@ -146,5 +148,33 @@ func TestRunLockHeldDuringSession(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(l.Store.Root, "lockcheck")); string(b) != "held" {
 		t.Fatal(string(b))
+	}
+}
+
+// recordingAdapter notes whether Ctrl+C was being guarded when the agent launched.
+type recordingAdapter struct {
+	*agenttest.Fake
+	guarded  *bool
+	atLaunch bool
+}
+
+func (r *recordingAdapter) Command(spec agent.LaunchSpec) *exec.Cmd {
+	r.atLaunch = *r.guarded
+	return r.Fake.Command(spec)
+}
+
+func TestInterruptGuardedWhileAgentRuns(t *testing.T) {
+	l, f := newLauncher(t, "exit")
+	guarded, released := false, false
+	orig := guardInterrupt
+	guardInterrupt = func() func() { guarded = true; return func() { guarded, released = false, true } }
+	defer func() { guardInterrupt = orig }()
+	ra := &recordingAdapter{Fake: f, guarded: &guarded}
+	l.Adapter = ra
+	if _, err := l.Build(nil); err != nil {
+		t.Fatal(err)
+	}
+	if !ra.atLaunch || !released || guarded {
+		t.Fatalf("atLaunch=%v released=%v guarded=%v", ra.atLaunch, released, guarded)
 	}
 }

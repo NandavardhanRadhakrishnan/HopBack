@@ -156,6 +156,13 @@ type StateInput struct {
 	Blockers        []string              `json:"blockers,omitempty"`
 	RecommendedNext *model.Pick           `json:"recommended_next,omitempty"`
 	Alternatives    []model.Pick          `json:"alternatives,omitempty"`
+
+	// Hopback-managed fields of state.json. They are accepted so the output
+	// of `hopback state get` can be edited and sent back, and are ignored.
+	SchemaVersion int                `json:"schema_version,omitempty"`
+	Revision      int                `json:"revision,omitempty"`
+	UpdatedAt     *time.Time         `json:"updated_at,omitempty"`
+	UpdatedBy     *model.Attribution `json:"updated_by,omitempty"`
 }
 
 // StaleError rejects a whole-state write based on an outdated revision.

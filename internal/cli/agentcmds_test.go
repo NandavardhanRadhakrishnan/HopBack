@@ -146,3 +146,18 @@ func TestOutsideProject(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestStateSet_AcceptsStateGetOutput(t *testing.T) {
+	app, _, root := newApp(t, nil)
+	if _, e, code := run(app, `{"mode":"between_features","bottom_line":"Auth done."}`, "state", "set", "--expect-revision", "0", "--file", "-"); code != 0 {
+		t.Fatal(e)
+	}
+	got, _, _ := run(app, "", "state", "get")
+	edited := strings.Replace(got, "Auth done.", "Auth shipped.", 1)
+	if _, e, code := run(app, edited, "state", "set", "--expect-revision", "1", "--file", "-"); code != 0 {
+		t.Fatal(e)
+	}
+	if st := loadState(t, root); st.BottomLine != "Auth shipped." || st.Revision != 2 {
+		t.Fatal(st)
+	}
+}

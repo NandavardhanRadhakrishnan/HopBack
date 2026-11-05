@@ -117,3 +117,15 @@ func TestBatch_AllOrNothing(t *testing.T) {
 		t.Fatal("partial batch applied")
 	}
 }
+
+func TestDecodeBatch_StateSetAcceptsStateGetFields(t *testing.T) {
+	st := newStore(t)
+	ops, err := DecodeBatch(strings.NewReader(`[{"op":"state_set","expect_revision":0,"state":{"schema_version":1,"revision":0,"updated_at":"2026-11-05T12:00:00Z","updated_by":{"session":"x","agent":"y"},"project_status":"active","mode":"between_features","bottom_line":"x"}}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok(t)(st.Apply(attr, ops...))
+	if s, _ := st.Load(); s.State.Revision != 1 || s.State.UpdatedBy.Session != "s1" {
+		t.Fatal(s.State)
+	}
+}

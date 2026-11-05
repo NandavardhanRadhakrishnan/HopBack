@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 
 	"github.com/NandavardhanRadhakrishnan/HopBack/internal/agent"
 	"github.com/NandavardhanRadhakrishnan/HopBack/internal/brief"
@@ -31,6 +32,16 @@ type Outcome struct {
 	Session model.Session
 	Parked  bool
 	NextSet *model.Pick // set when a concierge recorded a next task
+}
+
+// guardInterrupt stops Ctrl+C from killing Hopback while an agent runs: the
+// terminal delivers it to the agent and to Hopback alike, and the agent uses
+// it to interrupt or exit. Catching (not ignoring) the signal leaves the
+// child's own handling at its default. It returns the function that restores it.
+var guardInterrupt = func() (release func()) {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	return func() { signal.Stop(ch) }
 }
 
 func truncate(s string, n int) string {
@@ -117,9 +128,11 @@ func (l *Launcher) run(s model.Session, spec agent.LaunchSpec) (Outcome, error) 
 	if spec.ResumeNativeID == "" {
 		spec.NativeID = s.NativeSessionID
 	}
+	release := guardInterrupt()
 	cmd := l.Adapter.Command(spec)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = l.Stdin, l.Stdout, l.Stderr
 	runErr := cmd.Run()
+	release()
 	var exitErr *exec.ExitError
 	if errors.As(runErr, &exitErr) {
 		runErr = nil // the agent's exit code is not Hopback's concern
