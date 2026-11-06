@@ -2,13 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current state
+## Commands
 
-There is no code yet. Three documents define the work:
+- Build: `go build ./...` (binary: `go build -o bin/hopback.exe ./cmd/hopback`; `bin/` is gitignored and is on the user PATH, so a rebuild updates the `hopback` that agents call)
+- Test all: `go test ./...`
+- Single test: `go test ./internal/store -run TestTaskAdd_AssignsIDRankAndDefaults -v`
+- Vet: `go vet ./...`
 
-- `docs/PRD.md`: the product spec. Section numbers below (§) refer to it.
-- `docs/superpowers/specs/2026-11-05-hopback-mvp-design.md`: the agreed MVP design. **It wins wherever it differs from the PRD.** For example: no SQLite; build and concierge session roles; deliberate `/park` is the only way to end a session; Claude Code is the only agent Hopback launches.
-- `docs/superpowers/plans/2026-11-05-hopback-mvp.md`: the task-by-task implementation plan. It is being executed natively, in order. Its Task 1 replaces this section with the real build and test commands.
+The MVP design (`docs/superpowers/specs/2026-11-05-hopback-mvp-design.md`) refines the PRD and wins where they differ (e.g. no SQLite). The implementation plan is `docs/superpowers/plans/2026-11-05-hopback-mvp.md`. Section numbers below (§) refer to `docs/PRD.md`.
 
 Hopback is a local-first CLI that helps an independent developer keep track of many personal projects across AI coding agents such as Claude Code, Codex and Cursor. Projects are the primary entity. Sessions, backlog, decisions and events belong to a project.
 
@@ -41,6 +42,25 @@ These come from the spec. They are not style preferences.
 **Impact tracking.** An `architecture_change` links to the backlog items it may affect, and those items are *flagged for review*. Hopback never decides on its own that a task is obsolete (§7.3).
 
 **Completion** is optional: P = Σ(milestone weight × completion fraction). It is never derived from task counts, the user can override it, and it is shown separately from backlog health (§10.4).
+
+### Code map (MVP as built)
+
+The MVP replaces the SQLite tier with `~/.hopback/projects.json`; all project data lives in `.hopback/`.
+
+- `cmd/hopback`: entry point, calls `cli.Execute()`.
+- `internal/fsutil`: atomic temp-and-rename writes (with Windows retries) and `gofrs/flock` file locks.
+- `internal/model`: data types, enums, ID generation. Every JSON file carries `schema_version`.
+- `internal/protocol`: embedded `HOPBACK.md` and park-skill templates, pointer block, role instructions, opening prompts.
+- `internal/project`: find a project by walking up, `init`, template refresh, CLAUDE.md/AGENTS.md pointer blocks.
+- `internal/registry`: the machine-local project list (`HOPBACK_HOME` overrides `~/.hopback`).
+- `internal/store`: locked, all-or-nothing transactions over state/backlog/decisions plus the append-only event log; all write ops and `batch`.
+- `internal/session`: session records, attribution (`HOPBACK_SESSION`, then adapter detection), parking validation, reconciling dead sessions.
+- `internal/brief`: the status brief, project summaries, "changes since" lines.
+- `internal/agent`: the `Adapter` interface. `agent/claude` is the only Claude Code code; `agent/agenttest` is a fake adapter for tests.
+- `internal/launcher`: runs build/reopen/concierge sessions as attached child processes and records how they ended.
+- `internal/cli`: cobra commands (agent-facing and human-facing) and the interactive `hopback` loop.
+
+Dependency rule: core packages (`model`, `store`, `session`, `brief`, `project`, `registry`, `protocol`) never import `internal/agent/claude` or mention Claude Code. Only `internal/cli` wires the Claude adapter in.
 
 ## Data integrity requirements (§13)
 
